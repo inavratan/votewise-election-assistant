@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="VoteWise — Interactive election process education assistant for Indian citizens">
+  <meta name="theme-color" content="#1A73E8">
+  <title>VoteWise</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
+  <!-- Fallback Google Services Snippets (Keys omitted) -->
+  <!-- <script src="https://maps.googleapis.com/maps/api/js?key=GOOGLE_MAPS_API_KEY&libraries=places"></script> -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXXXXX');
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link sr-only">Skip to content</a>
+
+  <header class="app-header flex items-center">
+    <span class="material-symbols-outlined">how_to_vote</span>
+    <h1 class="text-h2 gradient-text">VoteWise</h1>
+    <button id="a11y-toggle" class="icon-btn ml-auto" aria-label="Accessibility Settings" aria-expanded="false" aria-controls="a11y-panel">
+      <span class="material-symbols-outlined">accessibility_new</span>
+    </button>
+  </header>
+
+  <div id="a11y-overlay" class="a11y-overlay hidden" aria-hidden="true"></div>
+  <div id="a11y-panel" class="a11y-panel hidden" role="dialog" aria-labelledby="a11y-title" aria-modal="true">
+    <div class="flex items-center justify-between mb-md">
+      <h2 id="a11y-title" class="text-h2">Accessibility</h2>
+      <button id="a11y-close" class="icon-btn" aria-label="Close Accessibility Panel">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="a11y-options">
+      <div class="a11y-option flex items-center justify-between mb-sm">
+        <label for="toggle-contrast" class="text-body font-bold">High Contrast</label>
+        <input type="checkbox" id="toggle-contrast" class="toggle-switch">
+      </div>
+      <div class="a11y-option flex items-center justify-between mb-sm">
+        <label for="toggle-text" class="text-body font-bold">Large Text</label>
+        <input type="checkbox" id="toggle-text" class="toggle-switch">
+      </div>
+      <div class="a11y-option flex items-center justify-between mb-sm">
+        <label for="toggle-motion" class="text-body font-bold">Reduce Motion</label>
+        <input type="checkbox" id="toggle-motion" class="toggle-switch">
+      </div>
+      <div class="a11y-option flex items-center justify-between">
+        <label for="toggle-dyslexia" class="text-body font-bold">Dyslexia Font</label>
+        <input type="checkbox" id="toggle-dyslexia" class="toggle-switch">
+      </div>
+    </div>
+  </div>
+
+  <main id="main-content" class="main-content">
+
+    <!-- TAB 1: Election Journey -->
+    <section id="tab-journey" class="tab-panel" role="tabpanel" aria-labelledby="nav-journey">
+      <div class="mb-lg">
+        <h2 class="text-h1 mb-xs">Election Journey</h2>
+        <p class="text-body-sm">Understand the complete election process, step-by-step.</p>
+      </div>
+      <div id="timeline-container" class="timeline">
+        <!-- Injected via JS -->
+      </div>
+    </section>    <!-- TAB 2: Voter Toolkit -->
+    <section id="tab-toolkit" class="tab-panel hidden" role="tabpanel" aria-labelledby="nav-toolkit">
+      <div class="content-header mb-lg">
+        <h2 class="text-h1 mb-sm">Voter Toolkit</h2>
+        <p class="text-body-sm text-secondary">Your personalized dashboard for polling day readiness.</p>
+      </div>
+
+      <!-- Readiness Gauge -->
+      <div class="readiness-dashboard card glass mb-lg text-center">
+        <h3 class="text-h3 mb-sm">Voter Readiness Score</h3>
+        <div class="gauge-container mx-auto">
+          <svg class="gauge-svg" viewBox="0 0 100 50">
+            <path class="gauge-bg" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-width="8" stroke-linecap="round"></path>
+            <path id="gauge-fill" class="gauge-fill" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-width="8" stroke-linecap="round" stroke-dasharray="125.6" stroke-dashoffset="125.6"></path>
+          </svg>
+          <div class="gauge-text">
+            <span id="readiness-score" class="text-h1 font-bold gradient-text">0%</span>
+          </div>
+        </div>
+        <p id="readiness-status" class="text-body-sm text-secondary mt-sm">Complete the checklist to get ready.</p>
+      </div>
+
+      <div class="grid md-grid-2 gap-lg">
+        <!-- Eligibility Check -->
+        <div class="card glass">
+          <h3 class="text-h2 mb-md flex items-center">
+            <span class="material-symbols-outlined mr-sm">verified_user</span> Eligibility
+          </h3>
+          <p class="text-body-sm mb-md text-secondary">Check if you meet the basic criteria to register.</p>
+          
+          <form id="eligibility-form">
+            <div class="form-group mb-md">
+              <label for="voter-age" class="form-label">Age</label>
+              <input type="number" id="voter-age" class="form-input" required aria-label="Enter your age" aria-describedby="age-desc">
+              <span id="age-desc" class="sr-only">Must be 18 or older</span>
+            </div>
+            <div class="form-group mb-md flex items-center justify-between">
+              <label for="voter-citizen" class="text-body font-bold">Indian Citizen?</label>
+              <input type="checkbox" id="voter-citizen" class="toggle-switch" required>
+            </div>
+            <div class="form-group mb-lg flex items-center justify-between">
+              <label for="voter-resident" class="text-body font-bold">Ordinary Resident?</label>
+              <input type="checkbox" id="voter-resident" class="toggle-switch" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-full">Verify Eligibility</button>
+          </form>
+          
+          <div id="eligibility-result" class="mt-md font-bold" aria-live="polite"></div>
+        </div>
+
+        <!-- Document Checklist -->
+        <div class="card glass flex-col">
+          <h3 class="text-h2 mb-md flex items-center">
+            <span class="material-symbols-outlined mr-sm">checklist</span> Documents
+          </h3>
+          <p class="text-body-sm mb-md text-secondary">Select the IDs you possess to boost your readiness score.</p>
+          <div id="document-checklist" class="checklist-container flex-col gap-sm overflow-y-auto" style="max-height: 300px;">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="quick-actions-section mt-lg">
+        <h3 class="text-h2 mb-md">Quick Actions</h3>
+        <div class="grid grid-3 gap-md">
+          <a href="https://electoralsearch.eci.gov.in/" target="_blank" class="quick-action-card card glass flex-col items-center justify-center text-center">
+            <div class="quick-icon mb-sm flex items-center justify-center rounded-full" style="width: 48px; height: 48px; background: linear-gradient(135deg, #FF6B6B, #FF8E53);"><span class="material-symbols-outlined" style="color: white;">location_on</span></div>
+            <span class="text-body-sm font-bold">Find Booth</span>
+          </a>
+          <a href="https://voters.eci.gov.in/" target="_blank" class="quick-action-card card glass flex-col items-center justify-center text-center">
+            <div class="quick-icon mb-sm flex items-center justify-center rounded-full" style="width: 48px; height: 48px; background: linear-gradient(135deg, #4E65FF, #92EFFD);"><span class="material-symbols-outlined" style="color: white;">app_registration</span></div>
+            <span class="text-body-sm font-bold">Register</span>
+          </a>
+          <a href="https://voters.eci.gov.in/" target="_blank" class="quick-action-card card glass flex-col items-center justify-center text-center">
+            <div class="quick-icon mb-sm flex items-center justify-center rounded-full" style="width: 48px; height: 48px; background: linear-gradient(135deg, #11998E, #38EF7D);"><span class="material-symbols-outlined" style="color: white;">download</span></div>
+            <span class="text-body-sm font-bold">Voter Slip</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Ask VoteWise -->
+    <section id="tab-ask" class="tab-panel hidden" role="tabpanel" aria-labelledby="nav-ask">
+      <div class="card chat-container glass" style="padding: 12px; height: calc(100vh - 180px);">
+        <div class="mb-xs text-center pb-sm" style="border-bottom: 1px solid var(--outline);">
+          <div class="avatar-large mx-auto mb-xs" style="background: var(--primary-light); width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm);">
+            <span class="material-symbols-outlined text-primary" style="font-size: 28px;">smart_toy</span>
+          </div>
+          <h2 class="text-h3">Ask VoteWise</h2>
+        </div>
+        
+        <div id="chat-messages" class="chat-messages" aria-live="polite" style="padding: 12px 0;">
+          <div class="message-wrapper assistant">
+            <div class="avatar"><span class="material-symbols-outlined">smart_toy</span></div>
+            <div class="message-content">
+              <div class="message glass">Namaste! I am VoteWise, your AI election guide. What would you like to know about the Indian election process?</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chips-container" id="chat-suggestions" style="padding: 0 0 12px 0;">
+          <button class="chip" data-query="How do I register to vote?">Register to vote</button>
+          <button class="chip" data-query="What is the Model Code of Conduct?">MCC Rules</button>
+          <button class="chip" data-query="How does EVM work?">EVM Working</button>
+        </div>
+
+        <form id="chat-form" class="chat-input-area flex items-center gap-sm" style="background: transparent; border: none; padding: 0;">
+          <button type="button" id="mic-btn" class="icon-btn" aria-label="Dictate message" style="background: var(--surface-variant); padding: 12px; border-radius: 50%; box-shadow: var(--shadow-sm);">
+            <span class="material-symbols-outlined text-primary">mic</span>
+          </button>
+          <div class="input-wrapper flex-1" style="position: relative; flex-grow: 1;">
+            <label for="chat-input" class="sr-only">Message VoteWise</label>
+            <input type="text" id="chat-input" class="chat-input w-full" placeholder="Ask a question..." aria-label="Message input" required style="width: 100%; border-radius: 24px; padding-right: 50px;">
+            <button type="submit" class="chat-send" aria-label="Send message" style="position: absolute; right: 4px; top: 4px; height: 44px; width: 44px; padding: 0;">
+              <span class="material-symbols-outlined">arrow_upward</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 4: Election Info -->
+    <section id="tab-info" class="tab-panel hidden" role="tabpanel" aria-labelledby="nav-info">
+      <div class="content-header mb-lg">
+        <h2 class="text-h1 mb-sm">Info Hub</h2>
+        <p class="text-body-sm text-secondary">State statistics, voter rights, and FAQs.</p>
+      </div>
+      
+      <!-- State Profile Dashboard -->
+      <div class="card glass mb-lg">
+        <h3 class="text-h2 mb-sm">State Profile</h3>
+        <label for="state-selector" class="sr-only">Select State</label>
+        <div style="position: relative;" class="mb-md">
+          <select id="state-selector" class="form-select w-full" aria-label="Select a State" style="padding-left: 40px; background-color: var(--surface); font-weight: 500;">
+            <option value="">-- Choose State --</option>
+            <option value="maharashtra">Maharashtra</option>
+            <option value="delhi">Delhi</option>
+            <option value="karnataka">Karnataka</option>
+            <option value="tamil_nadu">Tamil Nadu</option>
+            <option value="uttar_pradesh">Uttar Pradesh</option>
+            <option value="west_bengal">West Bengal</option>
+            <option value="gujarat">Gujarat</option>
+            <option value="rajasthan">Rajasthan</option>
+            <option value="madhya_pradesh">Madhya Pradesh</option>
+            <option value="bihar">Bihar</option>
+          </select>
+          <span class="material-symbols-outlined text-primary" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;">map</span>
+        </div>
+        
+        <div id="state-details" class="hidden" aria-live="polite">
+          <div class="stat-grid mb-md">
+            <div class="stat-card">
+              <span class="material-symbols-outlined text-primary mb-xs">groups</span>
+              <div class="text-body-xs text-secondary">Total Voters</div>
+              <div class="text-h3" id="state-voters">--</div>
+            </div>
+            <div class="stat-card">
+              <span class="material-symbols-outlined text-primary mb-xs">account_balance</span>
+              <div class="text-body-xs text-secondary">Lok Sabha</div>
+              <div class="text-h3" id="state-ls">--</div>
+            </div>
+            <div class="stat-card">
+              <span class="material-symbols-outlined text-primary mb-xs">how_to_vote</span>
+              <div class="text-body-xs text-secondary">Turnout</div>
+              <div class="text-h3" id="state-turnout">--</div>
+            </div>
+            <div class="stat-card">
+              <span class="material-symbols-outlined text-primary mb-xs">event</span>
+              <div class="text-body-xs text-secondary">Next Election</div>
+              <div class="text-h3 text-primary" id="state-upcoming">--</div>
+            </div>
+          </div>
+          <div class="fun-fact-banner flex items-center">
+            <span class="material-symbols-outlined mr-sm text-primary">lightbulb</span>
+            <span id="state-fun-fact" class="text-body-sm text-secondary"></span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Know Your Rights Carousel -->
+      <div class="mb-lg">
+        <h3 class="text-h2 mb-sm">Know Your Rights</h3>
+        <div class="rights-carousel" id="rights-container">
+          <!-- Injected by JS -->
+        </div>
+      </div>
+
+      <!-- FAQ Accordion -->
+      <div class="mb-lg">
+        <h3 class="text-h2 mb-sm">Frequently Asked Questions</h3>
+        <div class="faq-accordion" id="faq-container">
+          <!-- Injected by JS -->
+        </div>
+      </div>
+      
+      <div class="card text-center mb-lg glass">
+        <h3 class="text-h2 mb-sm">Important Links</h3>
+        <div class="flex-col gap-sm">
+          <a href="https://voters.eci.gov.in" target="_blank" rel="noopener noreferrer" class="btn-outline">NVSP Portal</a>
+          <a href="https://eci.gov.in" target="_blank" rel="noopener noreferrer" class="btn-outline">ECI Official Website</a>
+          <div class="text-body-sm mt-md">Voter Helpline: <strong>1950</strong></div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3 class="text-h3 text-center mb-sm">Rate Your Experience</h3>
+        <div class="star-rating" role="radiogroup" aria-label="Rate the app from 1 to 5 stars">
+          <span class="star" role="radio" aria-checked="false" aria-label="1 Star" tabindex="0" data-val="1">★</span>
+          <span class="star" role="radio" aria-checked="false" aria-label="2 Stars" tabindex="0" data-val="2">★</span>
+          <span class="star" role="radio" aria-checked="false" aria-label="3 Stars" tabindex="0" data-val="3">★</span>
+          <span class="star" role="radio" aria-checked="false" aria-label="4 Stars" tabindex="0" data-val="4">★</span>
+          <span class="star" role="radio" aria-checked="false" aria-label="5 Stars" tabindex="0" data-val="5">★</span>
+        </div>
+        <div class="chips-container mb-md" id="feedback-chips">
+          <button class="chip" data-feedback="Educational">Educational</button>
+          <button class="chip" data-feedback="Easy to Use">Easy to Use</button>
+          <button class="chip" data-feedback="Fast AI">Fast AI</button>
+          <button class="chip" data-feedback="Accurate">Accurate</button>
+        </div>
+        <div id="rating-response" class="text-center text-body-sm text-success hidden" aria-live="polite">Thanks for your feedback!</div>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="bottom-nav" role="tablist" aria-label="Main Navigation">
+    <button id="nav-journey" class="nav-tab active" role="tab" aria-selected="true" aria-controls="tab-journey">
+      <span class="material-symbols-outlined">format_list_numbered</span>
+      <span>Journey</span>
+    </button>
+    <button id="nav-toolkit" class="nav-tab" role="tab" aria-selected="false" aria-controls="tab-toolkit">
+      <span class="material-symbols-outlined">build</span>
+      <span>Toolkit</span>
+    </button>
+    <button id="nav-ask" class="nav-tab" role="tab" aria-selected="false" aria-controls="tab-ask">
+      <span class="material-symbols-outlined">forum</span>
+      <span>Ask VoteWise</span>
+    </button>
+    <button id="nav-info" class="nav-tab" role="tab" aria-selected="false" aria-controls="tab-info">
+      <span class="material-symbols-outlined">info</span>
+      <span>Info</span>
+    </button>
+  </nav>
+
+  <script src="app.js"></script>
+</body>
+</html>

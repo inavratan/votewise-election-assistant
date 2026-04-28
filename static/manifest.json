@@ -1,0 +1,16 @@
+{
+  "name": "VoteWise — Election Education Assistant",
+  "short_name": "VoteWise",
+  "description": "Interactive election process guide for Indian citizens",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#1A73E8",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗳️</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

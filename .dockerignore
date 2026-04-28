@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.pytest_cache/
+test_app.py
+*.tar.gz
+*.egg-info/
+.DS_Store
+.env
+README.md
