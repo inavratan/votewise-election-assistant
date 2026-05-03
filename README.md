@@ -3,15 +3,18 @@
 ## Problem Statement
 Indian citizens, especially first-time voters, often find the election process confusing. Due to a lack of centralized, engaging education tools, voters struggle with registration deadlines, polling booth procedures, required documents, EVM operations, and combating misinformation during elections.
 
-## Solution
-**VoteWise** is an AI-powered interactive progressive web app (PWA) that acts as an all-in-one companion for citizens. It provides a complete election process walkthrough, voter eligibility checks, document checklists, and a 24/7 Gemini-powered AI concierge that strictly answers questions based on Election Commission of India guidelines.
+## Chosen Vertical
+ Civic Tech & Election Education
 
-## Architecture & Technology Stack
-VoteWise uses a lightweight, high-performance architecture:
+## Approach and Logic
+VoteWise is built on a lightweight, high-performance architecture utilizing a backend-for-frontend pattern:
 *   **Backend:** Python Flask providing JSON REST APIs.
-*   **AI Integration:** Google Gemini AI Model via precise REST payload calls.
+*   **AI Integration:** Google Gemini AI Model via precise REST payload calls for contextual reasoning.
 *   **Frontend:** Vanilla JS / HTML / CSS (Single Page App style, PWA enabled).
-*   **Server Runtime:** `gunicorn` with multi-worker threading inside a Docker container.
+*   **Server Runtime:** `gunicorn` with multi-worker threading inside a Docker container on Google Cloud Run.
+
+## How the Solution Works
+**VoteWise** is an AI-powered interactive progressive web app (PWA) that acts as an all-in-one companion for citizens. It provides a complete election process walkthrough, voter eligibility checks based on user input, document checklists, and a 24/7 Gemini-powered AI concierge that strictly answers questions based on Election Commission of India guidelines.
 
 ### Assumptions
 *   All data provided in the app is based on statically curated ECI guidelines embedded within `data.py`. It does not rely on live ECI database scraping.
