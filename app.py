@@ -14,6 +14,11 @@ from werkzeug.exceptions import HTTPException
 from markupsafe import escape
 import os
 import requests
+import logging
+import google.generativeai as genai
+from google.cloud import translate_v2 as translate
+import google.cloud.logging
+from google.cloud import firestore
 
 from config import Config
 from data import ELECTION_TIMELINE, STATE_ELECTIONS, VOTER_DOCUMENTS, VOTER_RIGHTS, FAQ_DATA, CONCIERGE_FALLBACKS
@@ -22,6 +27,21 @@ from helpers import check_voter_eligibility, get_document_checklist
 # Application setup
 app = Flask(__name__, static_folder="static", static_url_path="")
 app.config.from_object(Config)
+
+# Google Cloud Integrations
+try:
+    logging_client = google.cloud.logging.Client()
+    logging_client.setup_logging()
+    logging.info("Google Cloud Logging initialized.")
+except Exception as e:
+    print("Warning: Google Cloud Logging failed to initialize:", e)
+
+try:
+    db = firestore.Client()
+    logging.info("Firestore Client initialized.")
+except Exception as e:
+    print("Warning: Firestore failed to initialize:", e)
+    db = None
 
 # Enable CORS, Ratelimiting, and Compression
 CORS(app, resources={r"/api/*": {"origins": ["http://localhost:8080", "https://votewise.app"]}})
@@ -172,36 +192,27 @@ def use_concierge():
         fallback_msg = _get_gemini_fallback(message)
         return jsonify({"reply": fallback_msg, "notice": "Offline Fallback Mode"}), 200
         
-    # Build call to Google Gemini Model directly (REST API call payload approach)
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{Config.GEMINI_MODEL}:generateContent?key={api_key}"
-    
-    system_prompt = (
-        "You are VoteWise, an AI assistant that educates Indian citizens about the election process. "
-        "You provide accurate, non-partisan information based on Election Commission of India (ECI) guidelines.\n"
-        "Key facts: Form 6 for registration, age 18 on qualifying date, EPIC card needed, EVM has blue button, "
-        "VVPAT 7 sec slip, NOTA available, Model Code of Conduct applies, 48 hours silence period, Polling 7 AM - 6 PM.\n"
-        "Rules: Be concise (2-3 sentences max). Stay non-partisan. Cite ECI guidelines. Direct to eci.gov.in or 1950 if unsure. Use markdown for better formatting (like bolding key terms). When mentioning 'Form 6' or any registration form, format it as an HTML link to https://voters.eci.gov.in/ (e.g., <a href='https://voters.eci.gov.in/' target='_blank'>Form 6</a>)."
-    )
-    
-    payload = {
-        "contents": [
-            {
-                "role": "user",
-                "parts": [{"text": system_prompt + "\n\nUser Question: " + message}]
-            }
-        ],
-        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 200}
-    }
-    
     try:
-        req = requests.post(url, json=payload, timeout=Config.GEMINI_TIMEOUT)
-        if req.status_code == 200:
-            resp_data = req.json()
-            ai_text = resp_data['candidates'][0]['content']['parts'][0]['text']
-            return jsonify({"reply": str(escape(ai_text)), "source": "gemini"}), 200
-        else:
-            return jsonify({"reply": _get_gemini_fallback(message)}), 200
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(Config.GEMINI_MODEL)
+        
+        system_prompt = (
+            "You are VoteWise, an AI assistant that educates Indian citizens about the election process. "
+            "You provide accurate, non-partisan information based on Election Commission of India (ECI) guidelines.\n"
+            "Key facts: Form 6 for registration, age 18 on qualifying date, EPIC card needed, EVM has blue button, "
+            "VVPAT 7 sec slip, NOTA available, Model Code of Conduct applies, 48 hours silence period, Polling 7 AM - 6 PM.\n"
+            "Rules: Be concise (2-3 sentences max). Stay non-partisan. Cite ECI guidelines. Direct to eci.gov.in or 1950 if unsure. Use markdown for better formatting (like bolding key terms). When mentioning 'Form 6' or any registration form, format it as an HTML link to https://voters.eci.gov.in/ (e.g., <a href='https://voters.eci.gov.in/' target='_blank'>Form 6</a>)."
+        )
+        
+        response = model.generate_content(
+            system_prompt + "\n\nUser Question: " + message,
+            generation_config={"temperature": 0.2, "max_output_tokens": 200}
+        )
+        
+        logging.info("Gemini SDK successfully generated content.")
+        return jsonify({"reply": str(escape(response.text)), "source": "gemini"}), 200
     except Exception as e:
+        logging.error(f"Gemini SDK failed: {e}")
         return jsonify({"reply": _get_gemini_fallback(message)}), 200
 
 @app.route('/api/translate', methods=['POST'])
@@ -221,15 +232,13 @@ def translate():
         # Graceful fallback: return original text with language indicator
         return jsonify({"translated": text, "language": target, "source": "fallback"})
     
-    url = f"https://translation.googleapis.com/language/translate/v2?key={api_key}"
-    payload = {"q": text, "target": target, "format": "text"}
-    
     try:
-        response = requests.post(url, json=payload, timeout=10)
-        response.raise_for_status()
-        translated = response.json()['data']['translations'][0]['translatedText']
-        return jsonify({"translated": translated, "language": target, "source": "google"})
-    except Exception:
+        translate_client = translate.Client()
+        result = translate_client.translate(text, target_language=target)
+        logging.info("Translate SDK successfully processed request.")
+        return jsonify({"translated": result["translatedText"], "language": target, "source": "google"})
+    except Exception as e:
+        logging.error(f"Translation SDK failed: {e}")
         return jsonify({"translated": text, "language": target, "source": "fallback"})
 
 @app.route("/api/save-feedback", methods=["POST"])
@@ -242,6 +251,13 @@ def save_feedback():
     rating = int(data.get("rating", 0))
     if rating < 1 or rating > 5:
         raise InvalidInputError("rating", "Rating must be between 1 and 5.")
+        
+    try:
+        if db:
+            db.collection("user_feedback").add({"rating": rating})
+            logging.info(f"Feedback rating {rating} written to Firestore.")
+    except Exception as e:
+        logging.error(f"Firestore write failed: {e}")
         
     return jsonify({"status": "success", "message": "Feedback saved."}), 200
 

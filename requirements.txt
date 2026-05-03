@@ -6,3 +6,7 @@ pytest==8.1.1
 Flask-Limiter==3.5.0
 flask-compress==1.14
 flask-cors==4.0.0
+google-generativeai
+google-cloud-translate
+google-cloud-logging
+google-cloud-firestore
