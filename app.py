@@ -216,8 +216,8 @@ def use_concierge():
         return jsonify({"reply": _get_gemini_fallback(message)}), 200
 
 @app.route('/api/translate', methods=['POST'])
-def translate():
-    """Translate text using Google Cloud Translation API."""
+def handle_translation():
+    """Translate text using official Google Cloud Translation SDK."""
     data = request.get_json() or {}
     text = data.get('text', '').strip()
     target = data.get('target', 'hi')
@@ -227,18 +227,14 @@ def translate():
     if len(text) > Config.MAX_TEXT_LENGTH:
         raise InvalidInputError("text", "Text is too long.")
     
-    api_key = Config.GOOGLE_TRANSLATE_API_KEY
-    if not api_key:
-        # Graceful fallback: return original text with language indicator
-        return jsonify({"translated": text, "language": target, "source": "fallback"})
-    
     try:
+        # Use the official SDK (translate module)
         translate_client = translate.Client()
         result = translate_client.translate(text, target_language=target)
-        logging.info("Translate SDK successfully processed request.")
+        logging.info(f"Translate SDK successfully processed request to {target}.")
         return jsonify({"translated": result["translatedText"], "language": target, "source": "google"})
     except Exception as e:
-        logging.error(f"Translation SDK failed: {e}")
+        logging.error(f"Translation SDK failed (likely missing credentials): {e}")
         return jsonify({"translated": text, "language": target, "source": "fallback"})
 
 @app.route("/api/save-feedback", methods=["POST"])
