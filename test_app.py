@@ -16,13 +16,20 @@ def client():
     with app.test_client() as client:
         yield client
 
-def test_1_get_index(client):
-    """TEST 1: GET / returns 200 with 'VoteWise' in response"""
-    # Note: static file index.html hasn't been tested with send_static_file without actual file,
-    # so we expect a 404 since file might not be present at test run time if executed before frontend,
-    # but based on requirements, assuming all is built.
-    response = client.get("/")
-    assert response.status_code in [200, 404]
+def test_index_returns_200(client):
+    """1. GET / serves the SPA"""
+    import unittest.mock as mock
+    import io
+    
+    html_content = b'<html><body>VoteWise</body></html>'
+    
+    with mock.patch('flask.Flask.send_static_file', return_value=app.response_class(
+        response=html_content,
+        status=200,
+        mimetype='text/html'
+    )):
+        res = client.get('/')
+        assert res.status_code == 200
 
 def test_2_get_timeline(client):
     """TEST 2: GET /api/timeline returns 8 election phases"""
@@ -134,15 +141,12 @@ def test_16_gzip_compression(client):
     response = client.get("/api/timeline", headers={"Accept-Encoding": "gzip"})
     assert response.status_code == 200
 
-def test_17_rate_limit(client):
-    """TEST 17: Rate limit triggers 429 after threshold"""
-    # Re-enable Limiter for this test
-    app.config["RATELIMIT_ENABLED"] = True
-    app.config["RATELIMIT_STORAGE_URL"] = "memory://"
-    with app.test_client() as local_client:
-        for _ in range(21):
-            res = local_client.get("/api/timeline")
-        assert res.status_code == 429
+def test_rate_limit(client):
+    """17. Rate limit triggers 429 after threshold"""
+    # Make 21 rapid requests to exceed the 20 per minute limit
+    responses = [client.get('/api/health') for _ in range(21)]
+    status_codes = [r.status_code for r in responses]
+    assert 429 in status_codes
 
 def test_18_pwa_assets(client):
     """TEST 18: PWA assets serve 200"""
@@ -151,3 +155,67 @@ def test_18_pwa_assets(client):
     # if static files exist, they return 200, else 404. We capture for syntax.
     assert res1.status_code in [200, 404]
     assert res2.status_code in [200, 404]
+
+# ===== HELPER FUNCTION TESTS =====
+
+def test_helper_eligibility_not_citizen():
+    """19. Helper returns ineligible for non-citizen"""
+    from helpers import check_voter_eligibility
+    result = check_voter_eligibility(25, False, True)
+    assert result['eligible'] is False
+    assert 'citizen' in result['reason'].lower()
+
+def test_helper_eligibility_underage():
+    """20. Helper returns ineligible for age < 18"""
+    from helpers import check_voter_eligibility
+    result = check_voter_eligibility(16, True, True)
+    assert result['eligible'] is False
+
+def test_helper_eligibility_eligible():
+    """21. Helper returns eligible for valid input"""
+    from helpers import check_voter_eligibility
+    result = check_voter_eligibility(21, True, True)
+    assert result['eligible'] is True
+
+def test_helper_calculate_days_until_future():
+    """22. calculate_days_until returns positive for future date"""
+    from helpers import calculate_days_until
+    result = calculate_days_until('2099-01-01')
+    assert result > 0
+
+def test_helper_calculate_days_until_invalid():
+    """23. calculate_days_until returns 0 for invalid date"""
+    from helpers import calculate_days_until
+    result = calculate_days_until('not-a-date')
+    assert result == 0
+
+def test_helper_document_checklist():
+    """24. get_document_checklist returns correct percentage"""
+    from helpers import get_document_checklist
+    result = get_document_checklist((0, 1, 2))
+    assert result['percentage'] > 0
+    assert isinstance(result['missing'], list)
+
+# ===== BOUNDARY & NEGATIVE TESTS =====
+
+def test_concierge_message_too_long(client):
+    """25. POST /api/concierge rejects messages over max length"""
+    long_message = "a" * 501
+    res = client.post('/api/concierge', json={"message": long_message})
+    assert res.status_code == 400
+
+def test_translate_empty_text(client):
+    """26. POST /api/translate rejects empty text"""
+    res = client.post('/api/translate', json={"text": "", "target": "hi"})
+    assert res.status_code == 400
+
+def test_eligibility_age_too_high(client):
+    """27. POST /api/eligibility rejects unrealistic age"""
+    res = client.post('/api/eligibility', json={"age": 999, "is_citizen": True, "is_resident": True})
+    assert res.status_code == 400
+
+def test_eligibility_non_citizen(client):
+    """28. POST /api/eligibility returns ineligible for non-citizen"""
+    res = client.post('/api/eligibility', json={"age": 25, "is_citizen": False, "is_resident": True})
+    assert res.status_code == 200
+    assert res.get_json()['eligible'] is False

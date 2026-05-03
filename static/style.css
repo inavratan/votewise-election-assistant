@@ -691,6 +691,25 @@ body.high-contrast .action-btn:hover { background: #333; }
 .ml-auto { margin-left: auto; }
 .font-bold { font-weight: 700; }
 
+.btn-icon {
+  background: none;
+  border: 1px solid var(--outline);
+  color: var(--on-surface-variant);
+  padding: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+  background: var(--surface-variant);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
 .icon-btn {
   background: transparent;
   border: none;

@@ -29,7 +29,10 @@
   <header class="app-header flex items-center">
     <span class="material-symbols-outlined">how_to_vote</span>
     <h1 class="text-h2 gradient-text">VoteWise</h1>
-    <button id="a11y-toggle" class="icon-btn ml-auto" aria-label="Accessibility Settings" aria-expanded="false" aria-controls="a11y-panel">
+    <button id="lang-toggle" class="btn btn-icon ml-auto" aria-label="Toggle language to Hindi" aria-pressed="false">
+      <span class="material-symbols-outlined">translate</span>
+    </button>
+    <button id="a11y-toggle" class="icon-btn" aria-label="Accessibility Settings" aria-expanded="false" aria-controls="a11y-panel" style="margin-left: 8px;">
       <span class="material-symbols-outlined">accessibility_new</span>
     </button>
   </header>
@@ -318,6 +321,6 @@
     </button>
   </nav>
 
-  <script src="app.js"></script>
+  <script src="app.js" defer></script>
 </body>
 </html>

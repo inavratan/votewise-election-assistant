@@ -7,6 +7,7 @@ Pure utility functions with calculation logic using @lru_cache.
 from functools import lru_cache
 from typing import Dict, List, Any
 from data import ELECTION_TIMELINE, VOTER_DOCUMENTS
+from datetime import datetime
 
 __all__ = [
     "check_voter_eligibility",
@@ -57,55 +58,43 @@ def get_election_phase_info(phase_id: str) -> Dict[str, Any]:
             return phase_data
     return {}
 
-@lru_cache(maxsize=64)
+@lru_cache(maxsize=128)
 def calculate_days_until(target_date_str: str) -> int:
     """
-    Calculate the number of days until a specific date (Mocked implementation for demo).
+    Calculate the number of days until a target date.
     
     Args:
-        target_date_str (str): The target date string.
+        target_date_str (str): Target date in 'YYYY-MM-DD' format.
         
     Returns:
-        int: Number of days remaining.
+        int: Number of days remaining. Negative if past. 0 if invalid format.
     """
-    # In a real app, parse the string with datetime. For this demo, return a dummy positive value.
-    return 15
+    try:
+        target_date = datetime.strptime(target_date_str, "%Y-%m-%d")
+        delta = target_date - datetime.now()
+        return delta.days
+    except (ValueError, TypeError):
+        return 0
 
-def get_document_checklist(checked_ids: List[str]) -> Dict[str, Any]:
+@lru_cache(maxsize=128)
+def get_document_checklist(checked_tuple: tuple) -> dict:
     """
-    Calculate checklist completion and missing documents for an individual voter.
+    Calculate checklist completion percentage and missing primary documents.
+    Accepts tuple to allow caching.
     
     Args:
-        checked_ids (list): List of document IDs the voter claims to have.
+        checked_tuple (tuple): Tuple of indices for checked documents.
         
     Returns:
-        dict: Completion percentage and missing core documents.
+        dict: Completion data with percentage and missing document names.
     """
-    if not isinstance(checked_ids, list):
-        return {"percentage": 0, "status": "No documents provided"}
-        
-    # Valid documents set
-    all_doc_ids = {doc["id"] for doc in VOTER_DOCUMENTS}
+    from data import VOTER_DOCUMENTS
+    total = len(VOTER_DOCUMENTS)
+    if total == 0:
+        return {"percentage": 0, "missing": []}
     
-    # Voter needs EXACTLY one of any of internal valid ids to vote, but EPIC is heavily recommended
-    valid_checked = [cid for cid in checked_ids if cid in all_doc_ids]
+    checked_count = len(checked_tuple)
+    percentage = int((checked_count / total) * 100)
+    missing = [doc for i, doc in enumerate(VOTER_DOCUMENTS) if i not in checked_tuple]
     
-    has_epic = "epic" in valid_checked
-    has_any_valid = len(valid_checked) > 0
-    
-    if has_epic:
-        percentage = 100
-        message = "You are fully prepared! You have the primary EPIC card."
-    elif has_any_valid:
-        percentage = 80
-        message = "You have an alternative valid ID. Ensure you know your booth."
-    else:
-        percentage = 0
-        message = "You need at least one valid photo ID document to vote."
-        
-    return {
-        "percentage": percentage,
-        "message": message,
-        "has_epic": has_epic,
-        "provided_docs": valid_checked
-    }
+    return {"percentage": percentage, "missing": missing}

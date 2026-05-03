@@ -53,11 +53,12 @@ async function cachedApiCall(endpoint, options = {}) {
  * Initialize app including service worker
  */
 function init() {
+  // Unregister service worker to fix stale cache issues
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(err => {
-        console.error('SW Registration Failed:', err);
-      });
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (let registration of registrations) {
+        registration.unregister();
+      }
     });
   }
 
@@ -149,10 +150,12 @@ function switchTab(clickedId) {
  */
 async function loadTimelineData() {
   try {
-    const timelineData = await cachedApiCall('/api/timeline');
     const container = document.getElementById('timeline-container');
+    container.setAttribute('aria-busy', 'true');
+    const timelineData = await cachedApiCall('/api/timeline');
     container.innerHTML = '';
     
+    container.setAttribute('aria-busy', 'false');
     timelineData.forEach(item => {
       const tItem = document.createElement('div');
       // Assign specific classes (completed, current, pending)
@@ -317,32 +320,40 @@ function addChatMessage(text, type, parseMarkdown = true) {
   
   const icon = type === 'user' ? 'person' : 'smart_toy';
   
-  let contentHtml = text;
-  if(parseMarkdown && typeof marked !== 'undefined' && type === 'assistant') {
-    contentHtml = marked.parse(text);
-  }
-
-  let actionsHtml = '';
-  if (type === 'assistant') {
-    actionsHtml = `
-      <div class="message-actions">
-        <button class="action-btn" onclick="readAloud(this)" aria-label="Read Aloud"><span class="material-symbols-outlined">volume_up</span> Read</button>
-        <button class="action-btn" onclick="copyText(this)" aria-label="Copy to clipboard"><span class="material-symbols-outlined">content_copy</span> Copy</button>
-      </div>
-    `;
+  const avatarDiv = document.createElement('div');
+  avatarDiv.className = 'avatar';
+  avatarDiv.innerHTML = `<span class="material-symbols-outlined">${icon}</span>`;
+  
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'message-content';
+  
+  const messageBubble = document.createElement('div');
+  messageBubble.className = 'message glass';
+  
+  if (parseMarkdown && typeof marked !== 'undefined' && type === 'assistant') {
+    messageBubble.innerHTML = marked.parse(text);
+  } else {
+    messageBubble.textContent = text; // textContent instead of innerHTML — prevents XSS
   }
   
-  wrapper.innerHTML = `
-    <div class="avatar"><span class="material-symbols-outlined">${icon}</span></div>
-    <div class="message-content">
-      <div class="message glass">${contentHtml}</div>
-      ${actionsHtml}
-    </div>
-  `;
+  contentDiv.appendChild(messageBubble);
+  
+  if (type === 'assistant') {
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'message-actions';
+    actionsDiv.innerHTML = `
+      <button class="action-btn" onclick="readAloud(this)" aria-label="Read Aloud"><span class="material-symbols-outlined">volume_up</span> Read</button>
+      <button class="action-btn" onclick="copyText(this)" aria-label="Copy to clipboard"><span class="material-symbols-outlined">content_copy</span> Copy</button>
+    `;
+    contentDiv.appendChild(actionsDiv);
+  }
+  
+  wrapper.appendChild(avatarDiv);
+  wrapper.appendChild(contentDiv);
   container.appendChild(wrapper);
   container.scrollTop = container.scrollHeight;
   
-  return wrapper.querySelector('.message');
+  return messageBubble;
 }
 
 // Read Aloud Function (TTS)
@@ -636,6 +647,61 @@ function setupAccessibility() {
     toggles[key].el.addEventListener('change', (e) => {
       applyPreference(key, e.target.checked);
     });
+  });
+}
+
+function openModal(title, listItems) {
+  document.getElementById('modal-title').textContent = title;
+  const ul = document.createElement('ul');
+  listItems.forEach(item => {
+    const li = document.createElement('li');
+    li.textContent = item;
+    ul.appendChild(li);
+  });
+  const body = document.getElementById('modal-body');
+  body.innerHTML = '';
+  body.appendChild(ul);
+  
+  const modal = document.getElementById('info-modal');
+  modal.classList.remove('hidden');
+  
+  const closeBtn = document.getElementById('close-modal');
+  closeBtn.focus();
+  
+  // Focus trap: keep focus inside modal while open
+  modal.addEventListener('keydown', trapFocus);
+}
+
+function trapFocus(e) {
+  const modal = document.getElementById('info-modal');
+  const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  
+  if (e.key === 'Tab') {
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+  if (e.key === 'Escape') closeModal();
+}
+
+function closeModal() {
+  const modal = document.getElementById('info-modal');
+  modal.classList.add('hidden');
+  modal.removeEventListener('keydown', trapFocus);
+}
+
+const langToggle = document.getElementById('lang-toggle');
+if (langToggle) {
+  langToggle.addEventListener('click', function() {
+    const pressed = this.getAttribute('aria-pressed') === 'true';
+    this.setAttribute('aria-pressed', String(!pressed));
+    this.setAttribute('aria-label', pressed ? 'Toggle language to Hindi' : 'Toggle language to English');
   });
 }
 

@@ -11,6 +11,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_compress import Compress
 from werkzeug.exceptions import HTTPException
+from markupsafe import escape
 import os
 import requests
 
@@ -23,7 +24,7 @@ app = Flask(__name__, static_folder="static", static_url_path="")
 app.config.from_object(Config)
 
 # Enable CORS, Ratelimiting, and Compression
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:8080", "https://votewise.app"]}})
 Compress(app)
 limiter = Limiter(
     get_remote_address,
@@ -38,15 +39,26 @@ def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' https://www.googletagmanager.com https://maps.googleapis.com https://cdn.jsdelivr.net 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src 'self' https://fonts.gstatic.com; "
-        "img-src 'self' data: https://www.google-analytics.com; "
-        "connect-src 'self' https://generativelanguage.googleapis.com https://translation.googleapis.com https://www.google-analytics.com;"
+        "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://cdn.jsdelivr.net https://*.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://*.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com https://*.gstatic.com; "
+        "connect-src 'self' https://generativelanguage.googleapis.com https://www.google-analytics.com; "
+        "img-src 'self' data:; "
+        "frame-ancestors 'none';"
     )
+    response.headers['Strict-Transport-Security'] = 'max-age=63072000; includeSubDomains'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+    
+    # Add cache headers for static API data
+    if request.path in ['/api/timeline', '/api/states', '/api/documents', '/api/faq']:
+        response.headers['Cache-Control'] = f'public, max-age={Config.CACHE_TTL_SECONDS}'
+        response.headers['ETag'] = f'"{Config.VERSION}-{request.path}"'
+    elif request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store'
+        
     return response
 
 class InvalidInputError(ValueError):
@@ -122,6 +134,9 @@ def check_eligibility():
     except ValueError:
         raise InvalidInputError("age", "Age must be an integer.")
         
+    if age < 0 or age > 150:
+        raise InvalidInputError("age", "Age must be between 1 and 150.")
+        
     is_citizen = bool(data.get("is_citizen", False))
     is_resident = bool(data.get("is_resident", False))
     
@@ -181,41 +196,41 @@ def use_concierge():
     try:
         req = requests.post(url, json=payload, timeout=Config.GEMINI_TIMEOUT)
         if req.status_code == 200:
-            gemini_res = req.json()
-            reply = gemini_res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-            if not reply:
-                reply = _get_gemini_fallback(message)
-            return jsonify({"reply": reply.strip()}), 200
+            resp_data = req.json()
+            ai_text = resp_data['candidates'][0]['content']['parts'][0]['text']
+            return jsonify({"reply": str(escape(ai_text)), "source": "gemini"}), 200
         else:
             return jsonify({"reply": _get_gemini_fallback(message)}), 200
     except Exception as e:
         return jsonify({"reply": _get_gemini_fallback(message)}), 200
 
-@app.route("/api/translate", methods=["POST"])
-def translate_text():
-    """Google Cloud Translation API Integration."""
-    data = request.get_json()
-    if not data or "text" not in data:
-        raise InvalidInputError("text", "Missing text field.")
-        
+@app.route('/api/translate', methods=['POST'])
+def translate():
+    """Translate text using Google Cloud Translation API."""
+    data = request.get_json() or {}
+    text = data.get('text', '').strip()
+    target = data.get('target', 'hi')
+    
+    if not text:
+        raise InvalidInputError("text", "Text is required for translation.")
+    if len(text) > Config.MAX_TEXT_LENGTH:
+        raise InvalidInputError("text", "Text is too long.")
+    
     api_key = Config.GOOGLE_TRANSLATE_API_KEY
     if not api_key:
-        return jsonify({"translated": data["text"] + " (Hindi Mode Simulated)"}), 200
-        
+        # Graceful fallback: return original text with language indicator
+        return jsonify({"translated": text, "language": target, "source": "fallback"})
+    
+    url = f"https://translation.googleapis.com/language/translate/v2?key={api_key}"
+    payload = {"q": text, "target": target, "format": "text"}
+    
     try:
-        url = f"https://translation.googleapis.com/language/translate/v2?key={api_key}"
-        payload = {
-            "q": data["text"],
-            "target": data.get("target", "hi")
-        }
-        res = requests.post(url, json=payload, timeout=5)
-        if res.status_code == 200:
-            translated = res.json()["data"]["translations"][0]["translatedText"]
-            return jsonify({"translated": translated}), 200
-        else:
-            return jsonify({"translated": data["text"] + " (Hindi Mode Simulated)"}), 200
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        translated = response.json()['data']['translations'][0]['translatedText']
+        return jsonify({"translated": translated, "language": target, "source": "google"})
     except Exception:
-        return jsonify({"translated": data["text"] + " (Hindi Mode Simulated)"}), 200
+        return jsonify({"translated": text, "language": target, "source": "fallback"})
 
 @app.route("/api/save-feedback", methods=["POST"])
 def save_feedback():

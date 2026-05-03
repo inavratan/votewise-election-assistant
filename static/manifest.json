@@ -1,16 +1,35 @@
 {
   "name": "VoteWise — Election Education Assistant",
   "short_name": "VoteWise",
-  "description": "Interactive election process guide for Indian citizens",
+  "description": "Interactive election process guide for Indian citizens. Understand voting, registration, and your rights.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",
   "theme_color": "#1A73E8",
+  "lang": "en-IN",
+  "categories": ["education", "government", "utilities"],
   "icons": [
     {
       "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗳️</text></svg>",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Check Eligibility",
+      "short_name": "Eligibility",
+      "description": "Check if you are eligible to vote",
+      "url": "/?tab=toolkit",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✅</text></svg>", "sizes": "any" }]
+    },
+    {
+      "name": "Ask VoteWise AI",
+      "short_name": "Ask AI",
+      "description": "Ask the AI concierge an election question",
+      "url": "/?tab=concierge",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>", "sizes": "any" }]
     }
   ]
 }
